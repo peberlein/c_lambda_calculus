@@ -46,10 +46,10 @@ The C preprocessor should expand this to:
                 void *_f_y(void *y) {
                     return x;
                 }
-                _f;
+                _f_y;
             });
         }
-        _f;
+        _f_x;
     })
     
 This has a problem, since `x` is on the stack when the outer `_f_x` is called, 
