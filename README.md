@@ -21,7 +21,8 @@ GCC supports [nested functions](http://gcc.gnu.org/onlinedocs/gcc/Nested-Functio
 
 Next, we need to be able to capture (bind) variables to the nested function.
 Since the variables we might wish to capture may lie outside of the lambda function, 
-we should rewrite it as a macro, and use a [statement expression](http://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html)
+we should rewrite it as a macro, and use a
+[statement expression](http://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html)
 containing the function.
 
     #define LAMBDA(_arg, _body)  ({               \
@@ -63,9 +64,9 @@ Our lambda could accept an array of additional captured variables, and the funct
 
     void *_f_x(void *var[], void *x)
             
-But then we need to somehow bind that var array to the function pointer.  
-Perhaps create a hash on function pointers to var array.  
-Perhaps create a `struct` containing the function pointer and the var array.  Something like this.
+But then we need to somehow bind that var array to the function pointer.  Perhaps create a 
+hash on function pointers to var array.  Perhaps create a `struct` containing the function 
+pointer and a captured variable array, like this.
 
     typedef struct _func *F;
     struct _func {
@@ -73,8 +74,10 @@ Perhaps create a `struct` containing the function pointer and the var array.  So
         F var[0];
     };
 
-When we allocate the `struct _func` we'll have to make sure to allocate extra space for the [zero-length array](http://http://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html)
-to hold the captured variables.  Unfortunately, this is no longer callable as a plain C function, and we'll have to use some
+When we allocate the `struct _func` we'll have to make sure to allocate extra space for the
+[zero-length array](http://http://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html)
+to hold the captured variables.
+Unfortunately, this is no longer callable as a plain C function, and we'll have to use some
 indirection to get to the function pointer and pass the var array.
 
     #define CALL(f,x) (f)->call((f)->var, x)
@@ -86,7 +89,7 @@ will should produce the same result.  We'll fix it later.
 Now our `LAMBDA` macro needs to accept a list of variables to capture.  Let's use a [variadic macro](http://http://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html).
 
     #define LAMBDA(_arg, _body, ...)  ({                \
-        F _f_ ## _arg (F var[], F _arg) _body                    \
+        F _f_ ## _arg (F var[], F _arg) _body           \
         F _var[] = { __VA_ARGS__ };                     \
         F _this;                                        \
         _this = malloc(sizeof(*_this) + sizeof(_var));  \
@@ -95,8 +98,8 @@ Now our `LAMBDA` macro needs to accept a list of variables to capture.  Let's us
         _this;                                          \
         })
 
-This is pretty bad.  We don't know how many captured variables there are, so they get copied to a temporary array.  
-The size of this array is then used to calculate the size of the struct.  
+This is pretty bad.  We don't know how many captured variables there are, so they get copied to a temporary 
+array.  The size of this array is then used to calculate the size of the struct.
 Then the temporary array gets copied to the array inside the struct.
 
 Now we can write the nested lambda like this, and it should work.
@@ -240,9 +243,9 @@ which gives the size of the captured variables.
 Also the lambda function body is now passed as an expression rather than a statement block, which frees us
 from putting the braces and return statement in our lambda definitions.
 
-It would be nice if the CALL macro could accept multiple arguments, instead of having to nest multiple CALL expressions.
+It would be nice if the `CALL` macro could accept multiple arguments, instead of having to nest multiple `CALL` expressions.
 Also there's the problem mentioned earlier about evaluating the `f` expression twice.
-Here's a helper function `call` which takes variable arguments and a terminator `_` so we know when to stop.  
+Here's a helper function `call` which takes variable arguments and a terminator `_` so we know when to stop.
 Unfortunately `call` is iterative, and there's nothing we can do about it in C.
 Hopefully we can reason that it is equivalent to purely functional calling.
     
