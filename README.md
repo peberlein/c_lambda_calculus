@@ -339,3 +339,505 @@ Now we can try it out.
 
 It actually works.
 
+Some more numbers which might be useful.
+
+	#define FIVE				\
+	LAMBDA(p,				\
+		LAMBDA(x,			\
+			P(P(P(P(P(x))))),	\
+		p)				\
+	)
+
+	#define FIFTEEN				\
+	LAMBDA(p,				\
+		LAMBDA(x,			\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(x)))))	\
+			)))))))))),		\
+		p)				\
+	)
+
+	#define HUNDRED				\
+	LAMBDA(p,				\
+		LAMBDA(x,			\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(	\
+			P(P(P(P(P(P(P(P(P(P(x	\
+			))))))))))))))))))))	\
+			))))))))))))))))))))	\
+			))))))))))))))))))))	\
+			))))))))))))))))))))	\
+			)))))))))))))))))))),	\
+		p)				\
+	)
+
+	printf("five: %ld\n", to_long(FIVE));
+	printf("fifteen: %ld\n", to_long(FIFTEEN));
+	printf("hundred: %ld\n", to_long(HUNDRED));
+
+	five: 5
+	fifteen: 15
+	hundred: 100
+
+### Booleans
+
+	#define FALSE		\
+	LAMBDA(x,		\
+		LAMBDA(y, y)	\
+	)
+
+	#define TRUE		\
+	LAMBDA(x,		\
+		LAMBDA(y,	\
+			x,	\
+		x)		\
+	)
+
+	const char *to_boolean(F f)
+	{
+		return (const char *) CALL(f, (F)"true", (F)"false");
+	}
+
+	printf("true: %s\n", to_boolean(TRUE));
+	printf("false: %s\n", to_boolean(FALSE));
+
+	true: true
+	false: false
+
+### Conditionals: if and is_zero
+
+	/* if function before simplification */
+	#define IF_0				\
+	LAMBDA(b,				\
+		LAMBDA(x,			\
+			LAMBDA(y,		\
+				CALL(b, x, y),	\
+			b, x),			\
+		b)				\
+	)
+
+	#define IF	\
+	LAMBDA(b, b)
+
+	#define IS_ZERO				\
+	LAMBDA(n,				\
+		CALL(n, LAMBDA(x, FALSE), TRUE)	\
+	)
+
+What happens if we drop a pointer to a string in the function?
+The string should be ok as long as we never evaluate it.
+
+	printf("foo: %s\n", (char*)CALL(IF_0, TRUE, (F)"foo", (F)"bar"));
+	printf("bar: %s\n", (char*)CALL(IF_0, FALSE, (F)"foo", (F)"bar"));
+	printf("foo: %s\n", (char*)CALL(IF, TRUE, (F)"foo", (F)"bar"));
+	printf("bar: %s\n", (char*)CALL(IF, FALSE, (F)"foo", (F)"bar"));
+
+	printf("is_zero zero: %s\n", to_boolean(CALL(IS_ZERO, ZERO)));
+	printf("is_zero three: %s\n", to_boolean(CALL(IS_ZERO, THREE)));
+
+	foo: foo
+	bar: bar
+	foo: foo
+	bar: bar
+	is_zero zero: true
+	is_zero three: false
+
+### Increment and Decrement
+
+	#define INC					\
+	LAMBDA(n,					\
+		LAMBDA(p,				\
+			LAMBDA(x,			\
+				CALL(p, CALL(n, p, x)),	\
+			n, p),				\
+		n)					\
+	)
+
+	#define DEC						\
+	LAMBDA(n,						\
+		LAMBDA(f,					\
+			LAMBDA(x,				\
+				CALL(n,				\
+					LAMBDA(g,		\
+						LAMBDA(h,	\
+							CALL(h, CALL(g, f)), \
+						f, g),		\
+					f),			\
+					LAMBDA(y,		\
+						x,		\
+					x),			\
+					LAMBDA(y,		\
+						y		\
+					)),			\
+			n, f),					\
+		n)						\
+	)
+	
+	printf("inc one: %ld\n", to_long(CALL(INC, ONE)));
+	printf("dec three: %ld\n", to_long(CALL(DEC, THREE)));
+	
+	inc one: 2
+	dec three: 2
+
+### Add, subtract, multiply and power
+
+	#define ADD				\
+	LAMBDA(m,				\
+		LAMBDA(n,			\
+			CALL(n, INC, m),	\
+		m)				\
+	)
+
+	#define SUB				\
+	LAMBDA(m,				\
+		LAMBDA(n,			\
+			CALL(n, DEC, m),	\
+		m)				\
+	)
+
+	#define MUL					\
+	LAMBDA(m,					\
+		LAMBDA(n,				\
+			CALL(n, CALL(ADD, m), ZERO),	\
+		m)					\
+	)
+
+	#define POW					\
+	LAMBDA(m,					\
+		LAMBDA(n,				\
+			CALL(n, CALL(MUL, m), ONE),	\
+		m)					\
+	)
+	
+	printf("add one three: %ld\n", to_long(CALL(ADD, ONE, THREE)));
+	printf("sub 100 5: %ld\n", to_long(CALL(SUB, HUNDRED, FIVE)));
+	printf("sub 5 3: %ld\n", to_long(CALL(SUB, FIVE, THREE)));
+	printf("sub 3 5: %ld\n", to_long(CALL(SUB, THREE, FIVE)));
+	printf("mul 3 2: %ld\n", to_long(CALL(MUL, THREE, TWO)));
+	printf("pow 3 3: %ld\n", to_long(CALL(POW, THREE, THREE)));
+
+	add one three: 4
+	sub 100 5: 95
+	sub 5 3: 2
+	sub 3 5: 0
+	mul 3 2: 6
+	pow 3 3: 27
+
+### Compare two numbers
+
+	#define IS_LESS_OR_EQUAL			\
+	LAMBDA(m,					\
+		LAMBDA(n,				\
+			CALL(IS_ZERO, CALL(SUB, m, n)),	\
+		m)					\
+	)
+
+	printf("1 <= 2: %s\n", to_boolean(CALL(IS_LESS_OR_EQUAL, ONE, TWO)));
+	printf("2 <= 2: %s\n", to_boolean(CALL(IS_LESS_OR_EQUAL, TWO, TWO)));
+	printf("3 <= 2: %s\n", to_boolean(CALL(IS_LESS_OR_EQUAL, THREE, TWO)));
+
+	1 <= 2: true
+	2 <= 2: true
+	3 <= 2: false
+
+### The Y and Z combinators
+
+	/* the Y combinator */
+	#define Y				\
+	LAMBDA(f,				\
+		CALL(LAMBDA(x,			\
+			CALL(f, CALL(x, x)),	\
+		f), LAMBDA(x,			\
+			CALL(f, CALL(x, x)),	\
+		f))				\
+	)
+
+	/* the Z combinator */
+	#define Z				\
+	LAMBDA(f,				\
+		CALL(LAMBDA(x,			\
+			CALL(f, LAMBDA(y,	\
+				CALL(x, x, y),	\
+			x)),			\
+		f), LAMBDA(x,			\
+			CALL(f, LAMBDA(y,	\
+				CALL(x, x, y),	\
+			x)),			\
+		f))				\
+	)
+
+### Modulus
+
+	#define MOD 				\
+	CALL(Z, LAMBDA(f,			\
+		LAMBDA(m,			\
+			LAMBDA(n,		\
+				CALL(IF, CALL(IS_LESS_OR_EQUAL, n, m),		\
+					LAMBDA(x,				\
+						CALL(f, CALL(SUB, m, n), n, x),	\
+					f, m, n),				\
+					m),	\
+			f, m),			\
+		f)				\
+	))
+
+	printf("3 mod 2: %ld\n", to_long(CALL(MOD, THREE, TWO)));
+	printf("3 mod 1: %ld\n", to_long(CALL(MOD, THREE, ONE)));
+	printf("3 mod 5: %ld\n", to_long(CALL(MOD, THREE, FIVE)));
+	printf("3^3 mod (2+3): %ld\n", to_long(CALL(MOD, CALL(POW, THREE, THREE), CALL(ADD, THREE, TWO))));
+
+	3 mod 2: 1
+	3 mod 1: 0
+	3 mod 5: 3
+	3^3 mod (2+3): 2
+
+
+### List functions: pair, left, right, empty, is_empty, first and rest
+
+	#define PAIR 				\
+	LAMBDA(x,				\
+		LAMBDA(y,			\
+			LAMBDA(f,		\
+				CALL(f, x, y),	\
+			x, y),			\
+		x)				\
+	)
+
+	#define LEFT 				\
+	LAMBDA(p,				\
+		CALL(p, LAMBDA(x,		\
+			LAMBDA(y,		\
+				x,		\
+			x)			\
+		))				\
+	)
+
+	#define RIGHT				\
+	LAMBDA(p,				\
+		CALL(p, LAMBDA(x,		\
+			LAMBDA(y,		\
+				y		\
+			)			\
+		))				\
+	)
+
+	#define UNSHIFT					\
+	LAMBDA(l,					\
+		LAMBDA(x,				\
+			CALL(PAIR, FALSE,		\
+				CALL(PAIR, x, l)),	\
+		l)					\
+	)
+
+	#define EMPTY	CALL(PAIR, TRUE, TRUE)
+	#define IS_EMPTY LEFT
+	#define FIRST	LAMBDA(l, CALL(LEFT, CALL(RIGHT, l)))
+	#define REST	LAMBDA(l, CALL(RIGHT, CALL(RIGHT, l)))
+
+	F my_list = CALL(UNSHIFT,
+			CALL(UNSHIFT,
+				CALL(UNSHIFT, EMPTY, THREE),
+				TWO),
+			ONE);
+	printf("first: %ld\n", to_long(CALL(FIRST, my_list)));
+	printf("first rest: %ld\n", to_long(CALL(FIRST, CALL(REST, my_list))));
+	printf("first rest rest: %ld\n", to_long(CALL(FIRST, CALL(REST, CALL(REST, my_list)))));
+	printf("is_empty my_list: %s\n", to_boolean(CALL(IS_EMPTY, my_list)));
+	printf("is_empty empty: %s\n", to_boolean(CALL(IS_EMPTY, EMPTY))); 
+
+	first: 1
+	first rest: 2
+	first rest rest: 3
+	is_empty my_list: false
+	is_empty empty: true
+
+### Range function
+
+	#define RANGE					\
+	CALL(Z, LAMBDA(f,				\
+		LAMBDA(m,				\
+			LAMBDA(n,			\
+				CALL(IF, CALL(IS_LESS_OR_EQUAL, m, n),	\
+					LAMBDA(x,	\
+						CALL(UNSHIFT, CALL(f, CALL(INC, m), n), m, x),\
+					f, m, n),	\
+					EMPTY),		\
+			f, m),				\
+		f)					\
+	))
+
+	void print_list(F l)
+	{
+		while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
+			printf("%ld ", to_long(CALL(FIRST, l)));
+			l = CALL(REST, l);
+		}
+		printf("\n");
+	}
+
+	F my_range = CALL(RANGE, ONE, FIVE);
+	printf("first: %ld\n", to_long(CALL(FIRST, my_range)));
+	printf("first rest: %ld\n", to_long(CALL(FIRST, CALL(REST, my_range))));
+	printf("first rest rest: %ld\n", to_long(CALL(FIRST, CALL(REST, CALL(REST, my_range)))));
+	print_list(my_range);
+
+	first: 1
+	first rest: 2
+	first rest rest: 3
+	1 2 3 4 5 
+
+### Fold and Map
+
+	#define FOLD					\
+	CALL(Z, LAMBDA(f,				\
+		LAMBDA(l,				\
+			LAMBDA(x,			\
+				LAMBDA(g,		\
+					CALL(IF, CALL(IS_EMPTY, l),	\
+						x,			\
+						LAMBDA(y,		\
+							CALL(g, CALL(f, CALL(REST, l), x, g), CALL(FIRST, l), y), \
+						f, l, x, g)),		\
+				f, l, x),		\
+			f, l),				\
+		f)					\
+	))
+
+	#define MAP					\
+	LAMBDA(k,					\
+		LAMBDA(f,				\
+			CALL(FOLD, k, EMPTY, LAMBDA(l,	\
+				LAMBDA(x,		\
+					CALL(UNSHIFT, l, CALL(f, x)), \
+				f, l),			\
+			f)),				\
+		k)					\
+	)
+
+	printf("fold(range one five)zero add: %ld\n", 
+		to_long(CALL(FOLD, CALL(RANGE, ONE, FIVE), ZERO, ADD)));
+	printf("fold(range one five)one mul: %ld\n", 
+		to_long(CALL(FOLD, CALL(RANGE, ONE, FIVE), ONE, MUL)));
+	printf("map(range one five)inc: ");
+	print_list(CALL(MAP, CALL(RANGE, ONE, FIVE), INC));
+
+	fold(range one five)zero add: 15
+	fold(range one five)one mul: 120
+	map(range one five)inc: 2 3 4 5 6 
+
+
+### Strings as lists of numbers
+
+	#define TEN	CALL(MUL, TWO, FIVE)
+	#define BBB	TEN
+	#define FFF	CALL(INC, BBB)
+	#define III	CALL(INC, FFF)
+	#define UUU	CALL(INC, III)
+	#define ZED	CALL(INC, UUU)
+
+	#define FIZZ	CALL(UNSHIFT, CALL(UNSHIFT, CALL(UNSHIFT, CALL(UNSHIFT, EMPTY, ZED), ZED), III), FFF)
+	#define BUZZ	CALL(UNSHIFT, CALL(UNSHIFT, CALL(UNSHIFT, CALL(UNSHIFT, EMPTY, ZED), ZED), UUU), BBB)
+	#define FIZZBUZZ CALL(UNSHIFT, CALL(UNSHIFT, CALL(UNSHIFT, CALL(UNSHIFT, BUZZ, ZED), ZED), III), FFF)
+
+	char to_char(F c)
+	{
+		return "0123456789BFiuz"[to_long(c)];
+	}
+
+	size_t length(F l)
+	{
+		size_t len = 0;
+		while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
+			++len;
+			l = CALL(REST, l);
+		}
+		return len;
+	}
+
+	void print_string(F l)
+	{
+		while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
+			putchar(to_char(CALL(FIRST, l)));
+			l = CALL(REST, l);
+		}
+		putchar('\n');
+	}
+
+	void print_strings(F l)
+	{
+		while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
+			print_string(CALL(FIRST, l));
+			l = CALL(REST, l);
+		}
+	}
+
+	print_string(FIZZ);
+	print_string(BUZZ);
+	print_string(FIZZBUZZ);
+
+	Fizz
+	Buzz
+	FizzBuzz
+
+### Converting numbers to digits: divide, push and to_digits
+
+	#define DIV		\
+	CALL(Z, LAMBDA(f,	\
+		LAMBDA(m,	\
+			LAMBDA(n,					\
+				CALL(IF, CALL(IS_LESS_OR_EQUAL, n, m),	\
+					LAMBDA(x,			\
+						CALL(INC, CALL(f, CALL(SUB, m, n), n), x),	\
+					f, m, n),			\
+					ZERO),				\
+			f, m),	\
+		f)		\
+	))
+
+	#define PUSH		\
+	LAMBDA(l,		\
+		LAMBDA(x,	\
+			CALL(FOLD, l, CALL(UNSHIFT, EMPTY, x), UNSHIFT),\
+		l)		\
+	)
+
+	#define TO_DIGITS		\
+	CALL(Z, LAMBDA(f,		\
+		LAMBDA(n,		\
+			CALL(PUSH,	\
+				CALL(IF, CALL(IS_LESS_OR_EQUAL, n, CALL(DEC, TEN)),\
+					EMPTY,					\
+					LAMBDA(x,				\
+						CALL(f, CALL(DIV, n, TEN), x),	\
+					f, n)),					\
+				CALL(MOD, n, TEN)),				\
+		f)								\
+	))
+
+	print_string(CALL(TO_DIGITS, FIVE));
+	print_string(CALL(TO_DIGITS, CALL(POW, FIVE, THREE)));
+
+	5
+	125
+
+### Finally, FizzBuzz	
+
+	print_strings(CALL(MAP, CALL(RANGE, ONE, HUNDRED), LAMBDA(n,
+		CALL(IF, CALL(IS_ZERO, CALL(MOD, n, FIFTEEN)),
+			FIZZBUZZ,
+		CALL(IF, CALL(IS_ZERO, CALL(MOD, n, THREE)),
+			FIZZ,
+		CALL(IF, CALL(IS_ZERO, CALL(MOD, n, FIVE)),
+			BUZZ,
+		CALL(TO_DIGITS, n)
+		)))
+	)));
+
+If you want to see how this gets expanded, run `gcc -E lambda.c`

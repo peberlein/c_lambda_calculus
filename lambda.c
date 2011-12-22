@@ -59,28 +59,29 @@ F (*lambda_dispatch[])(F, F) = {
 	)
    Note: variable captures are limited to 8, due to lambda_dispatch size.
 */
-#define LAMBDA(__arg, __expr, ...) ({	\
-	F __f (__arg, ##__VA_ARGS__) F __arg, ##__VA_ARGS__; { return __expr; } \
-	struct {struct functor __func; F __a[0], ##__VA_ARGS__; } *__this;	\
-	__this = GC_MALLOC(sizeof(*__this));	\
-	*__this = (typeof(*__this)){ 	\
-		{lambda_dispatch[(sizeof(*__this)-sizeof(__this->__func))/sizeof(F)], __f},	\
-		{}, ##__VA_ARGS__};	\
-	(F)__this;	\
+#define LAMBDA(_arg, _expr, ...) ({	\
+	F _f (_arg, ##__VA_ARGS__) F _arg, ##__VA_ARGS__; { return _expr; } \
+	struct {struct functor _f; F _a[0], ##__VA_ARGS__; } *_this;	\
+	_this = GC_MALLOC(sizeof(*_this));	\
+	*_this = (typeof(*_this)){ 	\
+		{ lambda_dispatch[(sizeof(*_this)-sizeof(_this->_f))/sizeof(F)], \
+		_f}, {}, ##__VA_ARGS__};	\
+	(F)_this;	\
 	})
 	
-/* call arg terminator */
-F _ = (F)-1;
 
-/* call f with args sequentially until _ */
+
+/* call f with args until _, left-associative */
 #define CALL(f, ...) call(f, __VA_ARGS__, _)
+F _ = (F)-1; /* call arg terminator */
 F call(F f, ...)
 {
 	va_list ap;
 	F a;
 	va_start(ap, f);
-	for (a = va_arg(ap, F); a != _; a = va_arg(ap, F))
+	for (a = va_arg(ap, F); a != _; a = va_arg(ap, F)) {
 		f = f->call(f, a);
+	}
 	va_end(ap);
 	return f;
 }
@@ -168,6 +169,7 @@ LAMBDA(p,				\
 	p)				\
 )
 
+
 #define FALSE		\
 LAMBDA(x,		\
 	LAMBDA(y, y)	\
@@ -181,16 +183,16 @@ LAMBDA(x,		\
 )
 
 /* if function before simplification */
-#define IF_0					\
-LAMBDA(b,					\
+#define IF_0				\
+LAMBDA(b,				\
 	LAMBDA(x,			\
 		LAMBDA(y,		\
 			CALL(b, x, y),	\
 		b, x),			\
-	b)					\
+	b)				\
 )
 
-#define IF		\
+#define IF	\
 LAMBDA(b, b)
 
 #define IS_ZERO				\
@@ -198,33 +200,33 @@ LAMBDA(n,				\
 	CALL(n, LAMBDA(x, FALSE), TRUE)	\
 )
 
-#define INC						\
-LAMBDA(n,						\
+#define INC					\
+LAMBDA(n,					\
 	LAMBDA(p,				\
 		LAMBDA(x,			\
 			CALL(p, CALL(n, p, x)),	\
 		n, p),				\
-	n)						\
+	n)					\
 )
 
-#define DEC							\
-LAMBDA(n,							\
+#define DEC						\
+LAMBDA(n,						\
 	LAMBDA(f,					\
 		LAMBDA(x,				\
 			CALL(n,				\
-				LAMBDA(g,			\
+				LAMBDA(g,		\
 					LAMBDA(h,	\
 						CALL(h, CALL(g, f)), \
 					f, g),		\
-				f),				\
+				f),			\
 				LAMBDA(y,		\
 					x,		\
-				x),				\
-				LAMBDA(y,			\
+				x),			\
+				LAMBDA(y,		\
 					y		\
-				)),				\
+				)),			\
 		n, f),					\
-	n)							\
+	n)						\
 )
 
 #define ADD				\
@@ -286,17 +288,17 @@ LAMBDA(f,				\
 	f))				\
 )
 
-#define MOD 					\
-CALL(Z, LAMBDA(f,				\
+#define MOD 				\
+CALL(Z, LAMBDA(f,			\
 	LAMBDA(m,			\
 		LAMBDA(n,		\
-			CALL(IF, CALL(IS_LESS_OR_EQUAL, n, m),	\
+			CALL(IF, CALL(IS_LESS_OR_EQUAL, n, m),		\
 				LAMBDA(x,				\
 					CALL(f, CALL(SUB, m, n), n, x),	\
 				f, m, n),				\
-				m),		\
+				m),	\
 		f, m),			\
-	f)					\
+	f)				\
 ))
 
 #define PAIR 				\
@@ -317,13 +319,13 @@ LAMBDA(p,				\
 	))				\
 )
 
-#define RIGHT					\
-LAMBDA(p,					\
+#define RIGHT				\
+LAMBDA(p,				\
 	CALL(p, LAMBDA(x,		\
 		LAMBDA(y,		\
 			y		\
-		)				\
-	))					\
+		)			\
+	))				\
 )
 
 #define UNSHIFT					\
@@ -350,41 +352,41 @@ void print_list(F l)
 
 #define RANGE					\
 CALL(Z, LAMBDA(f,				\
-	LAMBDA(m,			\
-		LAMBDA(n,		\
+	LAMBDA(m,				\
+		LAMBDA(n,			\
 			CALL(IF, CALL(IS_LESS_OR_EQUAL, m, n),	\
-				LAMBDA(x,				\
+				LAMBDA(x,	\
 					CALL(UNSHIFT, CALL(f, CALL(INC, m), n), m, x),\
 				f, m, n),	\
 				EMPTY),		\
-		f, m),			\
+		f, m),				\
 	f)					\
 ))
 
 #define FOLD					\
 CALL(Z, LAMBDA(f,				\
-	LAMBDA(l,			\
-		LAMBDA(x,		\
-			LAMBDA(g,	\
+	LAMBDA(l,				\
+		LAMBDA(x,			\
+			LAMBDA(g,		\
 				CALL(IF, CALL(IS_EMPTY, l),	\
-					x,				\
-					LAMBDA(y,			\
+					x,			\
+					LAMBDA(y,		\
 						CALL(g, CALL(f, CALL(REST, l), x, g), CALL(FIRST, l), y), \
 					f, l, x, g)),		\
-			f, l, x),				\
-		f, l),			\
+			f, l, x),		\
+		f, l),				\
 	f)					\
 ))
 
-#define MAP							\
-LAMBDA(k,							\
-	LAMBDA(f,					\
-		CALL(FOLD, k, EMPTY, LAMBDA(l,		\
-			LAMBDA(x,			\
+#define MAP					\
+LAMBDA(k,					\
+	LAMBDA(f,				\
+		CALL(FOLD, k, EMPTY, LAMBDA(l,	\
+			LAMBDA(x,		\
 				CALL(UNSHIFT, l, CALL(f, x)), \
 			f, l),			\
-		f)),					\
-	k)							\
+		f)),				\
+	k)					\
 )
 
 #define TEN	CALL(MUL, TWO, FIVE)
@@ -403,71 +405,54 @@ char to_char(F c)
 	return "0123456789BFiuz"[to_long(c)];
 }
 
-size_t length(F l)
+void print_string(F l)
 {
-	size_t len = 0;
 	while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
-		++len;
+		putchar(to_char(CALL(FIRST, l)));
 		l = CALL(REST, l);
 	}
-	return len;
-}
-
-char *to_string(F l)
-{
-	size_t len = length(l) + 1;
-	char *p = malloc(len);
-	if (!p)
-		return NULL;
-	len = 0;
-	while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
-		p[len++] = to_char(CALL(FIRST, l));
-		//printf("char %d\n", p[len-1]);
-		l = CALL(REST, l);
-	}
-	p[len] = 0;
-	return p;
+	putchar('\n');
 }
 
 void print_strings(F l)
 {
 	while (CALL(IF, CALL(IS_EMPTY, l), (F)0, (F)1)) {
-		printf("%s\n", to_string(CALL(FIRST, l)));
+		print_string(CALL(FIRST, l));
 		l = CALL(REST, l);
 	}
 }
 
-#define DIV				\
-CALL(Z, LAMBDA(f,			\
-	LAMBDA(m,		\
+#define DIV		\
+CALL(Z, LAMBDA(f,	\
+	LAMBDA(m,	\
 		LAMBDA(n,					\
 			CALL(IF, CALL(IS_LESS_OR_EQUAL, n, m),	\
-				LAMBDA(x,				\
+				LAMBDA(x,			\
 					CALL(INC, CALL(f, CALL(SUB, m, n), n), x),	\
 				f, m, n),			\
-				ZERO),					\
-		f, m),						\
-	f)								\
+				ZERO),				\
+		f, m),	\
+	f)		\
 ))
 
-#define PUSH				\
-LAMBDA(l,				\
-	LAMBDA(x,		\
-		CALL(FOLD, l, CALL(UNSHIFT, EMPTY, x), UNSHIFT),	\
-	l)				\
+#define PUSH		\
+LAMBDA(l,		\
+	LAMBDA(x,	\
+		CALL(FOLD, l, CALL(UNSHIFT, EMPTY, x), UNSHIFT),\
+	l)		\
 )
 
-#define TO_DIGITS			\
-CALL(Z, LAMBDA(f,			\
+#define TO_DIGITS		\
+CALL(Z, LAMBDA(f,		\
 	LAMBDA(n,		\
 		CALL(PUSH,	\
-			CALL(IF, CALL(IS_LESS_OR_EQUAL, n, CALL(DEC, TEN)),	\
-				EMPTY,						\
-				LAMBDA(x,					\
+			CALL(IF, CALL(IS_LESS_OR_EQUAL, n, CALL(DEC, TEN)),\
+				EMPTY,					\
+				LAMBDA(x,				\
 					CALL(f, CALL(DIV, n, TEN), x),	\
 				f, n)),					\
-			CALL(MOD, n, TEN)),					\
-	f)									\
+			CALL(MOD, n, TEN)),				\
+	f)								\
 ))
 
 
@@ -475,9 +460,6 @@ CALL(Z, LAMBDA(f,			\
 int main(int argc, char *argv[])
 {
 #if 0
-	printf("%s\n", CALL(LAMBDA(f, f), (F)"hello"));
-	
-	//printf("2 10: %ld\n", to_long(CALL(TWO, TEN)));
 	printf("zero: %ld\n", to_long(ZERO));
 	printf("one: %ld\n", to_long(ONE));
 	printf("two: %ld\n", to_long(TWO));
@@ -498,11 +480,11 @@ int main(int argc, char *argv[])
 	printf("is_zero three: %s\n", to_boolean(CALL(IS_ZERO, THREE)));
 	
 	printf("inc one: %ld\n", to_long(CALL(INC, ONE)));
-	printf("add one three: %ld\n", to_long(CALL(ADD, ONE, THREE)));
-	
 	printf("dec three: %ld\n", to_long(CALL(DEC, THREE)));
+
+	printf("add one three: %ld\n", to_long(CALL(ADD, ONE, THREE)));
 	printf("sub 100 5: %ld\n", to_long(CALL(SUB, HUNDRED, FIVE)));
-	
+
 	printf("sub 5 3: %ld\n", to_long(CALL(SUB, FIVE, THREE)));
 	printf("sub 3 5: %ld\n", to_long(CALL(SUB, THREE, FIVE)));
 	printf("mul 3 2: %ld\n", to_long(CALL(MUL, THREE, TWO)));
@@ -543,11 +525,11 @@ int main(int argc, char *argv[])
 	printf("map(range one five)inc: ");
 	print_list(CALL(MAP, CALL(RANGE, ONE, FIVE), INC));
 	
-	printf("%s\n", to_string(FIZZ));
-	printf("%s\n", to_string(BUZZ));
-	printf("%s\n", to_string(FIZZBUZZ));
-	printf("%s\n", to_string(CALL(TO_DIGITS, FIVE)));
-	printf("%s\n", to_string(CALL(TO_DIGITS, CALL(POW, FIVE, THREE))));
+	print_string(FIZZ);
+	print_string(BUZZ);
+	print_string(FIZZBUZZ);
+	print_string(CALL(TO_DIGITS, FIVE));
+	print_string(CALL(TO_DIGITS, CALL(POW, FIVE, THREE)));
 #endif
 #if 1
 	/* Fizz Buzz! */
