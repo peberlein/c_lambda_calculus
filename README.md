@@ -280,5 +280,62 @@ Now that we have lambda functions...
 
 ### Church encoding
 
+Here is a function representing zero using [Church encoding](http://en.wikipedia.org/wiki/Church_encoding)
 
+    #define ZERO    	\
+    LAMBDA(p,		    \
+    	LAMBDA(x, x)	\
+    )
+
+For other numbers, we use this `P` macro, to concisely call the function `p`.
+
+    #define P(x) (p->call(p, x))
+    
+    #define ONE    	\
+    LAMBDA(p, 		\
+    	LAMBDA(x,	\
+    		P(x),	\
+    	p)		    \
+    )
+    
+    #define TWO			\
+    LAMBDA(p, 			\
+    	LAMBDA(x,		\
+    		P(P(x)),	\
+    	p)			    \
+    )
+    
+    #define THREE		\
+    LAMBDA(p,			\
+    	LAMBDA(x,		\
+    		P(P(P(x))),	\
+    	p)			    \
+    )
+
+Now a function to convert a Church-encoded function-number back to C.
+A `long` is assumed to be the same size as a pointer, `uintptr_t` should really be used instead.
+
+    long to_long(F f)
+    {
+        F inner(F p, F x)
+    	{
+    		return (F)((long)x + 1);
+    	}
+    	struct functor lambda = {inner};
+    	return (long) CALL(f, &lambda, 0);
+    }
+
+Now we can try it out.
+
+    printf("zero: %ld\n", to_long(ZERO));
+	printf("one: %ld\n", to_long(ONE));
+	printf("two: %ld\n", to_long(TWO));
+	printf("three: %ld\n", to_long(THREE));
+
+    zero: 0
+    one: 1
+    two: 2
+    three: 3
+
+It actually works.
 
