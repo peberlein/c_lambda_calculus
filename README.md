@@ -3,6 +3,8 @@
 Inspired by Tom Stuart's [Programming with Nothing](http://experthuman.com/programming-with-nothing),
 I decided to port it to C.
 
+Requirements: GCC, [Boehm GC](http://www.hpl.hp.com/personal/Hans_Boehm/gc/)
+
 ### Problem: C doesn't have lambda functions.
 
 Then let's create them.  Our lambda functions will accept only one argument, since [currying](http://en.wikipedia.org/wiki/Currying)
