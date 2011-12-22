@@ -599,7 +599,7 @@ The string should be ok as long as we never evaluate it.
 	3^3 mod (2+3): 2
 
 
-### List functions: pair, left, right, empty, is_empty, first and rest
+### List functions
 
 	#define PAIR 				\
 	LAMBDA(x,				\
@@ -786,7 +786,7 @@ The string should be ok as long as we never evaluate it.
 	Buzz
 	FizzBuzz
 
-### Converting numbers to digits: divide, push and to_digits
+### Converting numbers to a list of digits
 
 	#define DIV		\
 	CALL(Z, LAMBDA(f,	\
@@ -827,7 +827,7 @@ The string should be ok as long as we never evaluate it.
 	5
 	125
 
-### Finally, FizzBuzz	
+### Finally, FizzBuzz
 
 	print_strings(CALL(MAP, CALL(RANGE, ONE, HUNDRED), LAMBDA(n,
 		CALL(IF, CALL(IS_ZERO, CALL(MOD, n, FIFTEEN)),
@@ -840,4 +840,4 @@ The string should be ok as long as we never evaluate it.
 		)))
 	)));
 
-If you want to see how this gets expanded, run `gcc -E lambda.c`
+If you want to see how the macros get expanded by the C preprocessor, run `gcc -E lambda.c`
