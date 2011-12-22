@@ -1,0 +1,3 @@
+LDLIBS=-lgc
+
+all: lambda
