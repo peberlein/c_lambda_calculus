@@ -843,3 +843,83 @@ The string should be ok as long as we never evaluate it.
 	)));
 
 If you want to see how the macros get expanded by the C preprocessor, run `gcc -E lambda.c`
+
+
+## Update: Constructing lambda calls with unlimited capture variables
+
+The GCC [builtin_apply](http://gcc.gnu.org/onlinedocs/gcc/Constructing-Calls.html)
+seemed promising as a method to call lambdas with unlimited capture variables.  The `__builtin_apply` built-in
+is designed to construct a call using an unknown number of arguments, and we want to repurpose it to
+call a function with an array of captured variables.
+
+    void * __builtin_apply (void (*function)(), void *arguments, size_t size)
+
+We need to keep track of the size of the arguments to the function, so we'll add that to the struct.
+The function pointer is now just a void pointer, to avoid warnings about initialization from incompatible type,
+due to the variable number of arguments.
+
+    struct functor {
+    	void *call;
+    	size_t size;
+    	F arg[0];
+    };
+	
+The `LAMBDA` macro needs to be modified to make room in the anonymous struct
+for the first argument in the lambda function.  Though initialized to zero,
+it will be filled just before when the lambda function is called.
+
+    #define LAMBDA(_arg, _expr, ...) ({    	\
+    	F _f##_arg(_arg, ##__VA_ARGS__) 	\
+    		F _arg, ##__VA_ARGS__; 		    \
+    		{ return _expr; }		        \
+    	struct {				            \
+    		struct functor _f;		        \
+    		F _arg, ##__VA_ARGS__;		    \
+    	} *_p;					            \
+    	_p = GC_MALLOC(sizeof(*_p));		\
+    	*_p = (typeof(*_p)){{			    \
+    		_f##_arg,			            \
+    		sizeof(*_p)-sizeof(_p->_f)},	\
+    		0, ##__VA_ARGS__};		        \
+    	(F)_p;					            \
+    	})
+
+The `__builtin_apply` built-in doesn't fully explain the structure of `arguments`,
+since it could change between GCC versions.  This might be a good reason not to use this method.
+But it does seem to work when we get an initial `args` from `__builtin_apply_args` and then
+replace the arg pointer with the captured var array.  This is also where the call argument gets copied into 
+the first slot in the captured var array.  Then `__builtin_apply` is invoked with lambda function pointer, 
+the modified args, and the size calculated by the `LAMBDA` macro.
+
+    /* call f with a single argument */
+    F call_1(F f, F a)
+    {
+        F **args;
+    	args = __builtin_apply_args();
+    	*args = f->arg;
+    	**args = a;
+    	return *(F*) __builtin_apply(f->call, args, f->size);
+    }
+    
+The `__builtin_apply` returns a pointer to the value returned by the lambda function,
+so it needs a cast and dereference.
+
+    /* call f with multiple args until _, left-associative */
+    F call(F f, ...)
+    {
+        va_list ap;
+    	F a;
+    	F **args;
+    	args = __builtin_apply_args();
+    	va_start(ap, f);
+    	for (a = va_arg(ap, F); a != _; a = va_arg(ap, F)) {
+    		*args = f->arg;
+    		**args = a;
+    		f = *(F*)__builtin_apply(f->call, args, f->size);
+    	}
+    	va_end(ap);
+    	return f;
+    }
+
+To try this method, rebuild with `make CFLAGS=-DUSE_BUILTIN_APPLY`.  The advantage of using this method is having no 
+limit on captured variables, but the tradeoff appears to be speed.
