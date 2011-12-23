@@ -11,6 +11,11 @@
 
 typedef struct functor *F;
 
+/* call f with args until _, left-associative */
+#define CALL(f, ...) call(f, __VA_ARGS__, _)
+F _ = (F)-1; /* call arg terminator */
+
+#ifndef USE_BUILTIN_APPLY
 struct functor {
 	F (*call)(F, F);
 	union {
@@ -60,20 +65,21 @@ F (*lambda_dispatch[])(F, F) = {
    Note: variable captures are limited to 8, due to lambda_dispatch size.
 */
 #define LAMBDA(_arg, _expr, ...) ({	\
-	F _f (_arg, ##__VA_ARGS__) F _arg, ##__VA_ARGS__; { return _expr; } \
-	struct {struct functor _f; F _a[0], ##__VA_ARGS__; } *_this;	\
-	_this = GC_MALLOC(sizeof(*_this));	\
-	*_this = (typeof(*_this)){ 	\
-		{ lambda_dispatch[(sizeof(*_this)-sizeof(_this->_f))/sizeof(F)], \
-		_f}, {}, ##__VA_ARGS__};	\
-	(F)_this;	\
+	F _f (_arg, ##__VA_ARGS__)	\
+		F _arg, ##__VA_ARGS__;	\
+		{ return _expr; }	\
+	struct {			\
+		struct functor _f;	\
+		F _a[0], ##__VA_ARGS__;	\
+	} *_p;				\
+	_p = GC_MALLOC(sizeof(*_p));	\
+	*_p = (typeof(*_p)){{ 		\
+		lambda_dispatch[(sizeof(*_p)-sizeof(_p->_f))/sizeof(F)], \
+		_f}, 			\
+		{}, ##__VA_ARGS__};	\
+	(F)_p;				\
 	})
 	
-
-
-/* call f with args until _, left-associative */
-#define CALL(f, ...) call(f, __VA_ARGS__, _)
-F _ = (F)-1; /* call arg terminator */
 F call(F f, ...)
 {
 	va_list ap;
@@ -86,16 +92,71 @@ F call(F f, ...)
 	return f;
 }
 
+/* shortcut for calling p with one argument */
+#define P(x) (p->call(p, x))
+
+#endif
+
+#ifdef USE_BUILTIN_APPLY
+
+struct functor {
+	void *call;
+	size_t size;
+	F arg[0];
+};
+
+#define LAMBDA(_arg, _expr, ...) ({		\
+	F _f##_arg(_arg, ##__VA_ARGS__) 	\
+		F _arg, ##__VA_ARGS__; 		\
+		{ return _expr; }		\
+	struct {				\
+		struct functor _f;		\
+		F _arg, ##__VA_ARGS__;		\
+	} *_p;					\
+	_p = GC_MALLOC(sizeof(*_p));		\
+	*_p = (typeof(*_p)){{			\
+		_f##_arg,			\
+		sizeof(*_p)-sizeof(_p->_f)},	\
+		0, ##__VA_ARGS__};		\
+	(F)_p;					\
+	})
+	
+/* call f with a single argument */
+F call_1(F f, F a)
+{
+	F **args;
+	args = __builtin_apply_args();
+	*args = f->arg;
+	**args = a;
+	return *(F*) __builtin_apply(f->call, args, f->size);
+}
+
+/* call f with multiple arguments */
+F call(F f, ...)
+{
+	va_list ap;
+	F a;
+	F **args;
+	args = __builtin_apply_args();
+	va_start(ap, f);
+	for (a = va_arg(ap, F); a != _; a = va_arg(ap, F)) {
+		*args = f->arg;
+		**args = a;
+		f = *(F*)__builtin_apply(f->call, args, f->size);
+	}
+	va_end(ap);
+	return f;
+}
+
+/* shortcut for calling p with one argument */
+#define P(x) (call_1(p, x))
+
+#endif
+
+
 long to_long(F f)
 {
-	F inner(F p, F x)
-	{
-		//printf("to_long inner p=%p x=%p\n", p, x);
-		return (F)((long)x + 1);
-	}
-	struct functor lambda = {inner};
-	//printf("to_long lambda=%p inner=%p call=%p\n", &lambda, inner, lambda.call);
-	return (long) CALL(f, &lambda, 0);
+	return (long) CALL(f, LAMBDA(x, (F)((long)x + 1)), 0);
 }
 
 const char *to_boolean(F f)
@@ -108,8 +169,6 @@ const char *to_boolean(F f)
 LAMBDA(p,		\
 	LAMBDA(x, x)	\
 )
-
-#define P(x) (p->call(p, x))
 
 #define ONE		\
 LAMBDA(p, 		\
