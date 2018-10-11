@@ -77,7 +77,7 @@ pointer and a captured variable array, like this.
     };
 
 When we allocate the `struct _func` we'll have to make sure to allocate extra space for the
-[zero-length array](http://http://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html)
+[zero-length array](http://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html)
 to hold the captured variables.
 Unfortunately, this is no longer callable as a plain C function, and we'll have to use some
 indirection to get to the function pointer and pass the var array.
@@ -88,7 +88,7 @@ There is a problem with this macro since it evaluates `f` twice, and this means 
 `f` gets expanded much more than it needs to be, resulting in bloated code and increased computation, but
 will should produce the same result.  We'll fix it later.
 
-Now our `LAMBDA` macro needs to accept a list of variables to capture.  Let's use a [variadic macro](http://http://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html).
+Now our `LAMBDA` macro needs to accept a list of variables to capture.  Let's use a [variadic macro](http://gcc.gnu.org/onlinedocs/gcc/Variadic-Macros.html).
 
     #define LAMBDA(_arg, _body, ...)  ({                \
         F _f_ ## _arg (F var[], F _arg) _body           \
@@ -130,7 +130,7 @@ and to which scopes those rules apply.
 So let's declare a new struct for each lambda containing the names of the captured parameters, and pass this 
 struct to the nested function.  The struct can be anonymous, and we'll use 
 [typeof](http://gcc.gnu.org/onlinedocs/gcc/Typeof.html) and 
-[compound literals](http://http://gcc.gnu.org/onlinedocs/gcc/Compound-Literals.html)
+[compound literals](http://gcc.gnu.org/onlinedocs/gcc/Compound-Literals.html)
 to initialize it.
 
     #define LAMBDA(_arg, _body, ...)  ({                  \
